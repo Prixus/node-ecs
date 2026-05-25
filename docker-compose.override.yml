@@ -1,0 +1,20 @@
+services:
+  users-service:
+    build:
+      target: builder
+    volumes:
+      - ./services/users-service/src:/app/src
+      - ./services/users-service/tsconfig.json:/app/tsconfig.json
+    command: ["npx", "ts-node-dev", "--respawn", "--transpile-only", "--poll", "src/index.ts"]
+    environment:
+      - NODE_ENV=development
+
+  orders-service:
+    build:
+      target: builder
+    volumes:
+      - ./services/orders-service/src:/app/src
+      - ./services/orders-service/tsconfig.json:/app/tsconfig.json
+    command: ["npx", "ts-node-dev", "--respawn", "--transpile-only", "--poll", "src/index.ts"]
+    environment:
+      - NODE_ENV=development

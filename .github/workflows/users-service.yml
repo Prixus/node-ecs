@@ -1,0 +1,57 @@
+name: users-service — Build & Deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'services/users-service/**'
+      - 'services/users-service/infra/**'
+
+env:
+  AWS_REGION: us-east-1
+  SERVICE: users-service
+  ENV: production
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/github-actions-deploy
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build & push image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          docker build \
+            -t $ECR_REGISTRY/$SERVICE:$GITHUB_SHA \
+            -t $ECR_REGISTRY/$SERVICE:latest \
+            services/$SERVICE
+          docker push $ECR_REGISTRY/$SERVICE:$GITHUB_SHA
+          docker push $ECR_REGISTRY/$SERVICE:latest
+
+      - name: Deploy CFN stack
+        run: |
+          aws cloudformation deploy \
+            --stack-name $ENV-$SERVICE \
+            --template-file services/$SERVICE/infra/$SERVICE.yml \
+            --parameter-overrides \
+                EnvironmentName=$ENV \
+                AccountId=${{ secrets.AWS_ACCOUNT_ID }} \
+                Region=$AWS_REGION \
+                ImageTag=$GITHUB_SHA \
+            --capabilities CAPABILITY_NAMED_IAM \
+            --no-fail-on-empty-changeset

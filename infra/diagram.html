@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Infrastructure Diagram</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', sans-serif; background: #0f1117; color: #e2e8f0; padding: 32px; }
+
+    h1 { font-size: 18px; font-weight: 600; color: #94a3b8; margin-bottom: 24px; letter-spacing: 0.05em; text-transform: uppercase; }
+
+    /* Legend */
+    .legend { display: flex; gap: 20px; margin-bottom: 32px; flex-wrap: wrap; }
+    .legend-item { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #94a3b8; }
+    .legend-dot { width: 12px; height: 12px; border-radius: 3px; }
+
+    /* Stacks */
+    .canvas { position: relative; width: 1100px; }
+
+    .stack {
+      border-radius: 12px;
+      padding: 16px 20px 20px;
+      margin-bottom: 16px;
+      border: 1px solid;
+    }
+    .stack-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 14px;
+      opacity: 0.7;
+    }
+
+    .stack-vpc   { background: #0d1f2d; border-color: #1e4a6e; }
+    .stack-vpc .stack-label { color: #38bdf8; }
+
+    .stack-cluster { background: #1a1a2e; border-color: #3730a3; }
+    .stack-cluster .stack-label { color: #818cf8; }
+
+    .stack-users  { background: #0d2420; border-color: #065f46; }
+    .stack-users .stack-label { color: #34d399; }
+
+    .stack-orders { background: #1e1a0d; border-color: #78350f; }
+    .stack-orders .stack-label { color: #fbbf24; }
+
+    /* Rows */
+    .row { display: flex; align-items: stretch; gap: 12px; flex-wrap: wrap; }
+
+    /* Boxes */
+    .box {
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 12px;
+      border: 1px solid;
+      min-width: 130px;
+    }
+    .box-title { font-weight: 700; font-size: 11px; margin-bottom: 4px; }
+    .box-sub   { font-size: 10px; opacity: 0.6; line-height: 1.5; }
+
+    .box-internet  { background: #1e293b; border-color: #475569; }
+    .box-internet .box-title { color: #94a3b8; }
+
+    .box-igw    { background: #0c2a4a; border-color: #1d4ed8; }
+    .box-igw .box-title { color: #60a5fa; }
+
+    .box-subnet { background: #0a2a3a; border-color: #0369a1; }
+    .box-subnet .box-title { color: #38bdf8; }
+
+    .box-sg     { background: #1a0a2a; border-color: #6d28d9; }
+    .box-sg .box-title { color: #a78bfa; }
+
+    .box-alb    { background: #1a0d2a; border-color: #7c3aed; }
+    .box-alb .box-title { color: #c4b5fd; }
+
+    .box-cluster { background: #12122a; border-color: #3730a3; }
+    .box-cluster .box-title { color: #818cf8; }
+
+    .box-iam    { background: #1a1a0a; border-color: #92400e; }
+    .box-iam .box-title { color: #fcd34d; }
+
+    .box-cloudmap { background: #0a1a2a; border-color: #0e7490; }
+    .box-cloudmap .box-title { color: #22d3ee; }
+
+    .box-cw     { background: #1a0a0a; border-color: #991b1b; }
+    .box-cw .box-title { color: #fca5a5; }
+
+    .box-task-users  { background: #0a2a1a; border-color: #065f46; }
+    .box-task-users .box-title { color: #34d399; }
+
+    .box-task-orders { background: #2a1a0a; border-color: #78350f; }
+    .box-task-orders .box-title { color: #fbbf24; }
+
+    .box-ecr    { background: #1a0a1a; border-color: #831843; }
+    .box-ecr .box-title { color: #f9a8d4; }
+
+    .box-rule   { background: #1a1a0a; border-color: #4d7c0f; }
+    .box-rule .box-title { color: #a3e635; }
+
+    /* Arrows */
+    .arrows { margin: 8px 0; }
+    .arrow { display: flex; align-items: center; gap: 8px; font-size: 11px; color: #64748b; margin: 4px 0; }
+    .arrow-line { flex: 1; height: 1px; background: #334155; position: relative; }
+    .arrow-line::after { content: '▶'; position: absolute; right: -6px; top: -8px; font-size: 10px; color: #64748b; }
+    .arrow-label { font-size: 10px; color: #475569; }
+
+    /* Arrow connectors between stacks */
+    .connector {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 32px;
+      position: relative;
+      color: #475569;
+      font-size: 11px;
+      gap: 8px;
+    }
+    .connector::before {
+      content: '';
+      position: absolute;
+      left: 50%;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: linear-gradient(to bottom, #334155, #475569);
+    }
+    .connector-label {
+      background: #0f1117;
+      padding: 2px 8px;
+      border-radius: 4px;
+      border: 1px solid #334155;
+      z-index: 1;
+      font-size: 10px;
+    }
+
+    /* AZ columns */
+    .az-row { display: flex; gap: 12px; }
+    .az-col { flex: 1; }
+    .az-label { font-size: 10px; color: #475569; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
+
+    /* Tag chip */
+    .chip {
+      display: inline-block;
+      font-size: 9px;
+      padding: 1px 6px;
+      border-radius: 10px;
+      margin-top: 4px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+    }
+    .chip-green { background: #064e3b; color: #6ee7b7; }
+    .chip-yellow { background: #451a03; color: #fde68a; }
+    .chip-blue  { background: #0c2a4a; color: #93c5fd; }
+
+    /* Service Connect arrow */
+    .sc-arrow {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 10px;
+      color: #06b6d4;
+      margin: 8px 0;
+      padding: 6px 10px;
+      background: #0a1f2a;
+      border: 1px dashed #0e7490;
+      border-radius: 6px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Infrastructure Diagram — node-ecs platform</h1>
+
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:#1e4a6e"></div> vpc.yml</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#3730a3"></div> cluster.yml</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#065f46"></div> users-service.yml</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#78350f"></div> orders-service.yml</div>
+  </div>
+
+  <div class="canvas">
+
+    <!-- Internet -->
+    <div class="row" style="margin-bottom:12px">
+      <div class="box box-internet" style="min-width:200px">
+        <div class="box-title">🌐 Internet</div>
+        <div class="box-sub">HTTP :80</div>
+      </div>
+    </div>
+
+    <div class="connector"><span class="connector-label">HTTP :80 inbound</span></div>
+
+    <!-- VPC Stack -->
+    <div class="stack stack-vpc">
+      <div class="stack-label">vpc.yml — VPC (10.0.0.0/16)</div>
+      <div class="row" style="margin-bottom:12px">
+        <div class="box box-igw">
+          <div class="box-title">Internet Gateway</div>
+          <div class="box-sub">Routes 0.0.0.0/0<br/>to public subnets</div>
+        </div>
+        <div class="box box-sg">
+          <div class="box-title">ALB Security Group</div>
+          <div class="box-sub">Ingress: :80 from 0.0.0.0/0<br/>Egress: all</div>
+        </div>
+        <div class="box box-sg">
+          <div class="box-title">ECS Security Group</div>
+          <div class="box-sub">Ingress: :3000–3001<br/>from ALB SG only</div>
+        </div>
+      </div>
+      <div class="az-row">
+        <div class="az-col">
+          <div class="az-label">Availability Zone 1</div>
+          <div class="box box-subnet">
+            <div class="box-title">Public Subnet 1</div>
+            <div class="box-sub">10.0.1.0/24<br/>MapPublicIpOnLaunch: true</div>
+          </div>
+        </div>
+        <div class="az-col">
+          <div class="az-label">Availability Zone 2</div>
+          <div class="box box-subnet">
+            <div class="box-title">Public Subnet 2</div>
+            <div class="box-sub">10.0.2.0/24<br/>MapPublicIpOnLaunch: true</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="connector"><span class="connector-label">Fn::ImportValue VpcId, SubnetIds, SGIds</span></div>
+
+    <!-- Cluster Stack -->
+    <div class="stack stack-cluster">
+      <div class="stack-label">cluster.yml — Shared Infrastructure</div>
+      <div class="row">
+        <div class="box box-alb" style="min-width:180px">
+          <div class="box-title">Application Load Balancer</div>
+          <div class="box-sub">internet-facing<br/>Listener: HTTP :80<br/>Default: 404 fixed response</div>
+        </div>
+        <div class="box box-cluster">
+          <div class="box-title">ECS Cluster</div>
+          <div class="box-sub">Container Insights: enabled</div>
+        </div>
+        <div class="box box-cloudmap">
+          <div class="box-title">Cloud Map Namespace</div>
+          <div class="box-sub">my-platform.local<br/>Used by Service Connect</div>
+        </div>
+        <div class="box box-iam">
+          <div class="box-title">IAM Roles</div>
+          <div class="box-sub">ecsTaskExecutionRole<br/>→ pull ECR, write logs<br/><br/>ecsTaskRole<br/>→ app AWS permissions</div>
+        </div>
+        <div class="box box-cw">
+          <div class="box-title">CloudWatch Log Groups</div>
+          <div class="box-sub">/ecs/users-service<br/>/ecs/orders-service<br/>/ecs/service-connect/*<br/>Retention: 14 days</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="connector"><span class="connector-label">Fn::ImportValue ClusterName, ALBListenerArn, RoleArns</span></div>
+
+    <!-- Services row -->
+    <div class="row" style="align-items: flex-start">
+
+      <!-- Users Service -->
+      <div class="stack stack-users" style="flex:1; margin-bottom:0">
+        <div class="stack-label">users-service/infra/users-service.yml</div>
+
+        <div class="box box-rule" style="margin-bottom:10px">
+          <div class="box-title">ALB Listener Rule</div>
+          <div class="box-sub">Priority: 10<br/>Path: /api/v1/users*<br/>→ forward to Target Group</div>
+        </div>
+
+        <div class="box box-alb" style="margin-bottom:10px">
+          <div class="box-title">Target Group</div>
+          <div class="box-sub">Port: 3000 · Protocol: HTTP<br/>TargetType: ip<br/>HealthCheck: GET /health</div>
+        </div>
+
+        <div class="box box-task-users" style="margin-bottom:10px">
+          <div class="box-title">ECS Service — users-service</div>
+          <div class="box-sub">DesiredCount: 2 · Fargate<br/>AssignPublicIp: ENABLED<br/>MinHealthy: 100% · Max: 200%<br/>Circuit breaker + rollback</div>
+        </div>
+
+        <div class="az-row" style="margin-bottom:10px">
+          <div class="az-col">
+            <div class="az-label">AZ 1 · Subnet 1</div>
+            <div class="box box-task-users">
+              <div class="box-title">Task (Fargate)</div>
+              <div class="box-sub">users-service:latest<br/>CPU: 256 · RAM: 512MB<br/>Port: 3000</div>
+              <span class="chip chip-green">Service Connect</span>
+            </div>
+          </div>
+          <div class="az-col">
+            <div class="az-label">AZ 2 · Subnet 2</div>
+            <div class="box box-task-users">
+              <div class="box-title">Task (Fargate)</div>
+              <div class="box-sub">users-service:latest<br/>CPU: 256 · RAM: 512MB<br/>Port: 3000</div>
+              <span class="chip chip-green">Service Connect</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="sc-arrow">
+          📡 Service Connect DNS: <strong>users-service:3000</strong> → my-platform.local
+        </div>
+      </div>
+
+      <!-- Middle arrow -->
+      <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding-top:140px; gap:4px; color:#06b6d4; font-size:10px; min-width:80px">
+        <div style="font-size:18px">↔</div>
+        <div style="text-align:center; color:#0e7490">Service Connect<br/>http://users-service:3000</div>
+      </div>
+
+      <!-- Orders Service -->
+      <div class="stack stack-orders" style="flex:1; margin-bottom:0">
+        <div class="stack-label">orders-service/infra/orders-service.yml</div>
+
+        <div class="box box-rule" style="margin-bottom:10px">
+          <div class="box-title">ALB Listener Rule</div>
+          <div class="box-sub">Priority: 20<br/>Path: /api/v1/orders*<br/>→ forward to Target Group</div>
+        </div>
+
+        <div class="box box-alb" style="margin-bottom:10px">
+          <div class="box-title">Target Group</div>
+          <div class="box-sub">Port: 3001 · Protocol: HTTP<br/>TargetType: ip<br/>HealthCheck: GET /health</div>
+        </div>
+
+        <div class="box box-task-orders" style="margin-bottom:10px">
+          <div class="box-title">ECS Service — orders-service</div>
+          <div class="box-sub">DesiredCount: 2 · Fargate<br/>AssignPublicIp: ENABLED<br/>MinHealthy: 100% · Max: 200%<br/>Circuit breaker + rollback</div>
+        </div>
+
+        <div class="az-row" style="margin-bottom:10px">
+          <div class="az-col">
+            <div class="az-label">AZ 1 · Subnet 1</div>
+            <div class="box box-task-orders">
+              <div class="box-title">Task (Fargate)</div>
+              <div class="box-sub">orders-service:latest<br/>CPU: 256 · RAM: 512MB<br/>Port: 3001</div>
+              <span class="chip chip-yellow">Service Connect</span>
+            </div>
+          </div>
+          <div class="az-col">
+            <div class="az-label">AZ 2 · Subnet 2</div>
+            <div class="box box-task-orders">
+              <div class="box-title">Task (Fargate)</div>
+              <div class="box-sub">orders-service:latest<br/>CPU: 256 · RAM: 512MB<br/>Port: 3001</div>
+              <span class="chip chip-yellow">Service Connect</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="sc-arrow">
+          📡 Service Connect DNS: <strong>orders-service:3001</strong> → my-platform.local
+        </div>
+      </div>
+    </div>
+
+    <!-- ECR -->
+    <div style="margin-top:16px">
+      <div class="connector"><span class="connector-label">Pull image on task start (via ecsTaskExecutionRole)</span></div>
+      <div class="row">
+        <div class="box box-ecr" style="min-width:280px">
+          <div class="box-title">Amazon ECR</div>
+          <div class="box-sub">
+            &lt;account&gt;.dkr.ecr.&lt;region&gt;.amazonaws.com/users-service:&lt;sha&gt;<br/>
+            &lt;account&gt;.dkr.ecr.&lt;region&gt;.amazonaws.com/orders-service:&lt;sha&gt;
+          </div>
+          <span class="chip chip-blue">Pushed by GitHub Actions</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</body>
+</html>

@@ -1,0 +1,12 @@
+{
+  "name": "my-platform",
+  "private": true,
+  "workspaces": [
+    "services/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "test": "npm run test --workspaces",
+    "install:all": "npm install --workspaces"
+  }
+}
