@@ -1,4 +1,22 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: dbadmin
+      POSTGRES_PASSWORD: localpassword
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infra/postgres-init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dbadmin"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
   users-service:
     build:
       context: ./services/users-service
@@ -8,12 +26,20 @@ services:
       - NODE_ENV=production
       - PORT=3000
       - SERVICE_NAME=users-service
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=users_db
+      - DB_USER=dbadmin
+      - DB_PASSWORD=localpassword
+    depends_on:
+      postgres:
+        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:3000/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 3
-      start_period: 10s
+      start_period: 15s
 
   orders-service:
     build:
@@ -25,7 +51,14 @@ services:
       - PORT=3001
       - SERVICE_NAME=orders-service
       - USERS_SERVICE_URL=http://users-service:3000
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=orders_db
+      - DB_USER=dbadmin
+      - DB_PASSWORD=localpassword
     depends_on:
+      postgres:
+        condition: service_healthy
       users-service:
         condition: service_healthy
     healthcheck:
@@ -33,4 +66,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 3
-      start_period: 10s
+      start_period: 15s
+
+volumes:
+  postgres_data:

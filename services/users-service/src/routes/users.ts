@@ -4,35 +4,39 @@ import { CreateUserDto } from '../models/user';
 
 const router = Router();
 
-router.get('/', (_req: Request, res: Response) => {
-  res.json(userService.getAll());
-});
-
-router.get('/:id', (req: Request, res: Response, next: NextFunction) => {
+router.get('/', async (_req: Request, res: Response, next: NextFunction) => {
   try {
-    res.json(userService.getById(req.params.id));
+    res.json(await userService.getAll());
   } catch (err) {
     next(err);
   }
 });
 
-router.post('/', (req: Request, res: Response, next: NextFunction) => {
+router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    res.json(await userService.getById(req.params.id));
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const dto: CreateUserDto = req.body;
     if (!dto.name || !dto.email) {
       res.status(400).json({ error: 'name and email are required' });
       return;
     }
-    const user = userService.create(dto);
+    const user = await userService.create(dto);
     res.status(201).json(user);
   } catch (err) {
     next(err);
   }
 });
 
-router.delete('/:id', (req: Request, res: Response, next: NextFunction) => {
+router.delete('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    userService.delete(req.params.id);
+    await userService.delete(req.params.id);
     res.status(204).send();
   } catch (err) {
     next(err);

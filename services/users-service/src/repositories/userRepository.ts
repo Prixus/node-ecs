@@ -1,26 +1,42 @@
+import { pool } from '../db/client';
 import { User } from '../models/user';
 
-const store = new Map<string, User>();
+// Maps a raw DB row to the User interface
+function toUser(row: Record<string, unknown>): User {
+  return {
+    id: row.id as string,
+    name: row.name as string,
+    email: row.email as string,
+    createdAt: (row.created_at as Date).toISOString(),
+  };
+}
 
 export const userRepository = {
-  findAll(): User[] {
-    return Array.from(store.values());
+  async findAll(): Promise<User[]> {
+    const result = await pool.query('SELECT * FROM users ORDER BY created_at DESC');
+    return result.rows.map(toUser);
   },
 
-  findById(id: string): User | undefined {
-    return store.get(id);
+  async findById(id: string): Promise<User | undefined> {
+    const result = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
+    return result.rows[0] ? toUser(result.rows[0]) : undefined;
   },
 
-  findByEmail(email: string): User | undefined {
-    return Array.from(store.values()).find((u) => u.email === email);
+  async findByEmail(email: string): Promise<User | undefined> {
+    const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    return result.rows[0] ? toUser(result.rows[0]) : undefined;
   },
 
-  save(user: User): User {
-    store.set(user.id, user);
-    return user;
+  async save(data: { name: string; email: string }): Promise<User> {
+    const result = await pool.query(
+      'INSERT INTO users (name, email) VALUES ($1, $2) RETURNING *',
+      [data.name, data.email],
+    );
+    return toUser(result.rows[0]);
   },
 
-  delete(id: string): boolean {
-    return store.delete(id);
+  async delete(id: string): Promise<boolean> {
+    const result = await pool.query('DELETE FROM users WHERE id = $1', [id]);
+    return (result.rowCount ?? 0) > 0;
   },
 };

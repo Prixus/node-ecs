@@ -1,4 +1,3 @@
-import { randomUUID } from 'crypto';
 import { User, CreateUserDto } from '../models/user';
 import { userRepository } from '../repositories/userRepository';
 
@@ -17,31 +16,25 @@ export class EmailConflictError extends Error {
 }
 
 export const userService = {
-  getAll(): User[] {
+  async getAll(): Promise<User[]> {
     return userRepository.findAll();
   },
 
-  getById(id: string): User {
-    const user = userRepository.findById(id);
+  async getById(id: string): Promise<User> {
+    const user = await userRepository.findById(id);
     if (!user) throw new UserNotFoundError(id);
     return user;
   },
 
-  create(dto: CreateUserDto): User {
-    if (userRepository.findByEmail(dto.email)) {
+  async create(dto: CreateUserDto): Promise<User> {
+    if (await userRepository.findByEmail(dto.email)) {
       throw new EmailConflictError(dto.email);
     }
-    const user: User = {
-      id: randomUUID(),
-      name: dto.name,
-      email: dto.email,
-      createdAt: new Date().toISOString(),
-    };
-    return userRepository.save(user);
+    return userRepository.save({ name: dto.name, email: dto.email });
   },
 
-  delete(id: string): void {
-    const deleted = userRepository.delete(id);
+  async delete(id: string): Promise<void> {
+    const deleted = await userRepository.delete(id);
     if (!deleted) throw new UserNotFoundError(id);
   },
 };

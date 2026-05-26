@@ -35,7 +35,11 @@ deploy_stack "${ENV}-vpc" infra/vpc.yml \
 deploy_stack "${ENV}-cluster" infra/cluster.yml \
   "EnvironmentName=${ENV}"
 
-# 3. Build and push images to ECR
+# 3. RDS (PostgreSQL — takes ~10 min on first deploy)
+deploy_stack "${ENV}-rds" infra/rds.yml \
+  "EnvironmentName=${ENV}"
+
+# 4. Build and push images to ECR
 echo ""
 echo "==> Authenticating with ECR"
 aws ecr get-login-password --region "${REGION}" \
@@ -49,7 +53,7 @@ for SERVICE in users-service orders-service; do
   docker push "${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com/${SERVICE}:${IMAGE_TAG}"
 done
 
-# 4. Services (deploy independently — each gets its own stack)
+# 5. Services (deploy independently — each gets its own stack)
 deploy_stack "${ENV}-users-service" services/users-service/infra/users-service.yml \
   "EnvironmentName=${ENV}" \
   "AccountId=${ACCOUNT_ID}" \
@@ -62,7 +66,7 @@ deploy_stack "${ENV}-orders-service" services/orders-service/infra/orders-servic
   "Region=${REGION}" \
   "ImageTag=${IMAGE_TAG}"
 
-# 5. Print the ALB URL
+# 6. Print the ALB URL
 ALB_DNS=$(aws cloudformation describe-stacks \
   --stack-name "${ENV}-cluster" \
   --region "${REGION}" \

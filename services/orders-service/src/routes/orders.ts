@@ -4,35 +4,39 @@ import { CreateOrderDto } from '../models/order';
 
 const router = Router();
 
-router.get('/', (_req: Request, res: Response) => {
-  res.json(orderService.getAll());
-});
-
-router.get('/:id', (req: Request, res: Response, next: NextFunction) => {
+router.get('/', async (_req: Request, res: Response, next: NextFunction) => {
   try {
-    res.json(orderService.getById(req.params.id));
+    res.json(await orderService.getAll());
   } catch (err) {
     next(err);
   }
 });
 
-router.post('/', (req: Request, res: Response, next: NextFunction) => {
+router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    res.json(await orderService.getById(req.params.id));
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const dto: CreateOrderDto = req.body;
     if (!dto.userId || !dto.items) {
       res.status(400).json({ error: 'userId and items are required' });
       return;
     }
-    const order = orderService.create(dto);
+    const order = await orderService.create(dto);
     res.status(201).json(order);
   } catch (err) {
     next(err);
   }
 });
 
-router.patch('/:id/cancel', (req: Request, res: Response, next: NextFunction) => {
+router.patch('/:id/cancel', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    res.json(orderService.cancel(req.params.id));
+    res.json(await orderService.cancel(req.params.id));
   } catch (err) {
     next(err);
   }
