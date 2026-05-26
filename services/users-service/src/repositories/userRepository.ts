@@ -1,26 +1,50 @@
+import { PrismaClient } from '@prisma/client';
 import { User } from '../models/user';
 
-const store = new Map<string, User>();
+// Interface the service depends on — keeps the service decoupled from Prisma.
+// To swap the ORM: write a new class implementing this interface and inject it.
+export interface IUserRepository {
+  findAll(): Promise<User[]>;
+  findById(id: string): Promise<User | undefined>;
+  findByEmail(email: string): Promise<User | undefined>;
+  save(data: { name: string; email: string }): Promise<User>;
+  delete(id: string): Promise<boolean>;
+}
 
-export const userRepository = {
-  findAll(): User[] {
-    return Array.from(store.values());
-  },
+function toUser(row: { id: string; name: string; email: string; createdAt: Date }): User {
+  return { ...row, createdAt: row.createdAt.toISOString() };
+}
 
-  findById(id: string): User | undefined {
-    return store.get(id);
-  },
+export class UserRepository implements IUserRepository {
+  constructor(private readonly prisma: PrismaClient) {}
 
-  findByEmail(email: string): User | undefined {
-    return Array.from(store.values()).find((u) => u.email === email);
-  },
+  async findAll(): Promise<User[]> {
+    const rows = await this.prisma.user.findMany({ orderBy: { createdAt: 'desc' } });
+    return rows.map(toUser);
+  }
 
-  save(user: User): User {
-    store.set(user.id, user);
-    return user;
-  },
+  async findById(id: string): Promise<User | undefined> {
+    const row = await this.prisma.user.findUnique({ where: { id } });
+    return row ? toUser(row) : undefined;
+  }
 
-  delete(id: string): boolean {
-    return store.delete(id);
-  },
-};
+  async findByEmail(email: string): Promise<User | undefined> {
+    const row = await this.prisma.user.findUnique({ where: { email } });
+    return row ? toUser(row) : undefined;
+  }
+
+  async save(data: { name: string; email: string }): Promise<User> {
+    const row = await this.prisma.user.create({ data });
+    return toUser(row);
+  }
+
+  async delete(id: string): Promise<boolean> {
+    try {
+      await this.prisma.user.delete({ where: { id } });
+      return true;
+    } catch {
+      // Prisma throws P2025 when the record doesn't exist
+      return false;
+    }
+  }
+}

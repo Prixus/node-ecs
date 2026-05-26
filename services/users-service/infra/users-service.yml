@@ -46,6 +46,21 @@ Resources:
               Value: '3000'
             - Name: SERVICE_NAME
               Value: users-service
+            - Name: DB_HOST
+              Value:
+                Fn::ImportValue: !Sub ${EnvironmentName}-DBEndpoint
+            - Name: DB_PORT
+              Value: '5432'
+            - Name: DB_NAME
+              Value: users_db
+            - Name: DB_USER
+              Value: dbadmin
+          Secrets:
+            - Name: DB_PASSWORD
+              ValueFrom: !Sub
+                - '${SecretArn}:password::'
+                - SecretArn:
+                    Fn::ImportValue: !Sub ${EnvironmentName}-DBMasterSecretArn
           LogConfiguration:
             LogDriver: awslogs
             Options:

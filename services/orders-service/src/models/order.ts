@@ -15,7 +15,5 @@ export interface Order {
   createdAt: string;
 }
 
-export interface CreateOrderDto {
-  userId: string;
-  items: OrderItem[];
-}
+// DTO is now derived from the Zod schema (single source of truth)
+export type { CreateOrderDto } from '../schemas/orderSchemas';

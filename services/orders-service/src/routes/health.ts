@@ -1,19 +1,25 @@
 import { Router, Request, Response } from 'express';
 import { config } from '../config';
 
-const router = Router();
+export function createHealthRouter(): Router {
+  const router = Router();
 
-router.get('/health', (_req: Request, res: Response) => {
-  res.json({
-    status: 'ok',
-    service: config.serviceName,
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
+  // Liveness — is the process alive and HTTP server responding?
+  router.get('/health', (_req: Request, res: Response) => {
+    res.json({
+      status: 'ok',
+      service: config.serviceName,
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+    });
   });
-});
 
-router.get('/ready', (_req: Request, res: Response) => {
-  res.json({ status: 'ready' });
-});
+  // Readiness — is this task ready to receive traffic?
+  // Intentionally does NOT check DB — database health is monitored
+  // via CloudWatch alarms on RDS metrics (CPUUtilization, DatabaseConnections, etc.)
+  router.get('/ready', (_req: Request, res: Response) => {
+    res.json({ status: 'ready' });
+  });
 
-export default router;
+  return router;
+}

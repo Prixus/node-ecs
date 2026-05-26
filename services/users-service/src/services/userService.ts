@@ -1,6 +1,5 @@
-import { randomUUID } from 'crypto';
 import { User, CreateUserDto } from '../models/user';
-import { userRepository } from '../repositories/userRepository';
+import { IUserRepository } from '../repositories/userRepository';
 
 export class UserNotFoundError extends Error {
   constructor(id: string) {
@@ -16,32 +15,28 @@ export class EmailConflictError extends Error {
   }
 }
 
-export const userService = {
-  getAll(): User[] {
-    return userRepository.findAll();
-  },
+export class UserService {
+  constructor(private readonly repo: IUserRepository) {}
 
-  getById(id: string): User {
-    const user = userRepository.findById(id);
+  async getAll(): Promise<User[]> {
+    return this.repo.findAll();
+  }
+
+  async getById(id: string): Promise<User> {
+    const user = await this.repo.findById(id);
     if (!user) throw new UserNotFoundError(id);
     return user;
-  },
+  }
 
-  create(dto: CreateUserDto): User {
-    if (userRepository.findByEmail(dto.email)) {
+  async create(dto: CreateUserDto): Promise<User> {
+    if (await this.repo.findByEmail(dto.email)) {
       throw new EmailConflictError(dto.email);
     }
-    const user: User = {
-      id: randomUUID(),
-      name: dto.name,
-      email: dto.email,
-      createdAt: new Date().toISOString(),
-    };
-    return userRepository.save(user);
-  },
+    return this.repo.save({ name: dto.name, email: dto.email });
+  }
 
-  delete(id: string): void {
-    const deleted = userRepository.delete(id);
+  async delete(id: string): Promise<void> {
+    const deleted = await this.repo.delete(id);
     if (!deleted) throw new UserNotFoundError(id);
-  },
-};
+  }
+}
