@@ -1,5 +1,5 @@
 import { User, CreateUserDto } from '../models/user';
-import { userRepository } from '../repositories/userRepository';
+import { IUserRepository } from '../repositories/userRepository';
 
 export class UserNotFoundError extends Error {
   constructor(id: string) {
@@ -15,26 +15,28 @@ export class EmailConflictError extends Error {
   }
 }
 
-export const userService = {
+export class UserService {
+  constructor(private readonly repo: IUserRepository) {}
+
   async getAll(): Promise<User[]> {
-    return userRepository.findAll();
-  },
+    return this.repo.findAll();
+  }
 
   async getById(id: string): Promise<User> {
-    const user = await userRepository.findById(id);
+    const user = await this.repo.findById(id);
     if (!user) throw new UserNotFoundError(id);
     return user;
-  },
+  }
 
   async create(dto: CreateUserDto): Promise<User> {
-    if (await userRepository.findByEmail(dto.email)) {
+    if (await this.repo.findByEmail(dto.email)) {
       throw new EmailConflictError(dto.email);
     }
-    return userRepository.save({ name: dto.name, email: dto.email });
-  },
+    return this.repo.save({ name: dto.name, email: dto.email });
+  }
 
   async delete(id: string): Promise<void> {
-    const deleted = await userRepository.delete(id);
+    const deleted = await this.repo.delete(id);
     if (!deleted) throw new UserNotFoundError(id);
-  },
-};
+  }
+}

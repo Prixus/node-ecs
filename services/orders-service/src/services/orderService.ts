@@ -1,5 +1,5 @@
 import { Order, CreateOrderDto } from '../models/order';
-import { orderRepository } from '../repositories/orderRepository';
+import { IOrderRepository } from '../repositories/orderRepository';
 
 export class OrderNotFoundError extends Error {
   constructor(id: string) {
@@ -15,35 +15,34 @@ export class InvalidOrderError extends Error {
   }
 }
 
-export const orderService = {
+export class OrderService {
+  constructor(private readonly repo: IOrderRepository) {}
+
   async getAll(): Promise<Order[]> {
-    return orderRepository.findAll();
-  },
+    return this.repo.findAll();
+  }
 
   async getById(id: string): Promise<Order> {
-    const order = await orderRepository.findById(id);
+    const order = await this.repo.findById(id);
     if (!order) throw new OrderNotFoundError(id);
     return order;
-  },
+  }
 
   async getByUserId(userId: string): Promise<Order[]> {
-    return orderRepository.findByUserId(userId);
-  },
+    return this.repo.findByUserId(userId);
+  }
 
   async create(dto: CreateOrderDto): Promise<Order> {
-    if (!dto.items || dto.items.length === 0) {
-      throw new InvalidOrderError('Order must have at least one item');
-    }
     const total = dto.items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
-    return orderRepository.save({ userId: dto.userId, items: dto.items, total });
-  },
+    return this.repo.save({ userId: dto.userId, items: dto.items, total });
+  }
 
   async cancel(id: string): Promise<Order> {
-    const order = await orderRepository.findById(id);
+    const order = await this.repo.findById(id);
     if (!order) throw new OrderNotFoundError(id);
     if (order.status === 'cancelled') {
       throw new InvalidOrderError('Order is already cancelled');
     }
-    return orderRepository.updateStatus(id, 'cancelled');
-  },
-};
+    return this.repo.updateStatus(id, 'cancelled');
+  }
+}

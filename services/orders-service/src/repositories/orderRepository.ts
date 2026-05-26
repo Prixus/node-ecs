@@ -1,52 +1,72 @@
-import { pool } from '../db/client';
+import { PrismaClient, OrderStatus } from '@prisma/client';
+import { Decimal } from '@prisma/client/runtime/library';
 import { Order, OrderItem } from '../models/order';
 
-// Maps a raw DB row to the Order interface
-function toOrder(row: Record<string, unknown>): Order {
+// Interface the service depends on — keeps the service decoupled from Prisma.
+// To swap the ORM: write a new class implementing this interface and inject it.
+export interface IOrderRepository {
+  findAll(): Promise<Order[]>;
+  findById(id: string): Promise<Order | undefined>;
+  findByUserId(userId: string): Promise<Order[]>;
+  save(data: { userId: string; items: OrderItem[]; total: number }): Promise<Order>;
+  updateStatus(id: string, status: Order['status']): Promise<Order>;
+}
+
+function toOrder(row: {
+  id: string;
+  userId: string;
+  items: unknown;
+  status: OrderStatus;
+  total: Decimal;
+  createdAt: Date;
+}): Order {
   return {
-    id: row.id as string,
-    userId: row.user_id as string,
+    id: row.id,
+    userId: row.userId,
     items: row.items as OrderItem[],
-    status: row.status as Order['status'],
-    total: parseFloat(row.total as string),
-    createdAt: (row.created_at as Date).toISOString(),
+    status: row.status,
+    total: row.total.toNumber(),
+    createdAt: row.createdAt.toISOString(),
   };
 }
 
-export const orderRepository = {
+export class OrderRepository implements IOrderRepository {
+  constructor(private readonly prisma: PrismaClient) {}
+
   async findAll(): Promise<Order[]> {
-    const result = await pool.query('SELECT * FROM orders ORDER BY created_at DESC');
-    return result.rows.map(toOrder);
-  },
+    const rows = await this.prisma.order.findMany({ orderBy: { createdAt: 'desc' } });
+    return rows.map(toOrder);
+  }
 
   async findById(id: string): Promise<Order | undefined> {
-    const result = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
-    return result.rows[0] ? toOrder(result.rows[0]) : undefined;
-  },
+    const row = await this.prisma.order.findUnique({ where: { id } });
+    return row ? toOrder(row) : undefined;
+  }
 
   async findByUserId(userId: string): Promise<Order[]> {
-    const result = await pool.query(
-      'SELECT * FROM orders WHERE user_id = $1 ORDER BY created_at DESC',
-      [userId],
-    );
-    return result.rows.map(toOrder);
-  },
+    const rows = await this.prisma.order.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+    });
+    return rows.map(toOrder);
+  }
 
   async save(data: { userId: string; items: OrderItem[]; total: number }): Promise<Order> {
-    const result = await pool.query(
-      `INSERT INTO orders (user_id, items, total)
-       VALUES ($1, $2, $3)
-       RETURNING *`,
-      [data.userId, JSON.stringify(data.items), data.total],
-    );
-    return toOrder(result.rows[0]);
-  },
+    const row = await this.prisma.order.create({
+      data: {
+        userId: data.userId,
+        items: data.items,
+        total: data.total,
+      },
+    });
+    return toOrder(row);
+  }
 
   async updateStatus(id: string, status: Order['status']): Promise<Order> {
-    const result = await pool.query(
-      'UPDATE orders SET status = $1 WHERE id = $2 RETURNING *',
-      [status, id],
-    );
-    return toOrder(result.rows[0]);
-  },
-};
+    const row = await this.prisma.order.update({
+      where: { id },
+      data: { status: status as OrderStatus },
+    });
+    return toOrder(row);
+  }
+}

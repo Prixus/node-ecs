@@ -5,7 +5,5 @@ export interface User {
   createdAt: string;
 }
 
-export interface CreateUserDto {
-  name: string;
-  email: string;
-}
+// DTO is now derived from the Zod schema (single source of truth)
+export type { CreateUserDto } from '../schemas/userSchemas';

@@ -1,10 +1,11 @@
 import express, { Application } from 'express';
 import helmet from 'helmet';
 import morgan from 'morgan';
-import healthRouter from './routes/health';
-import ordersRouter from './routes/orders';
+import { OrderService } from './services/orderService';
+import { createHealthRouter } from './routes/health';
+import { createOrdersRouter } from './routes/orders';
 
-export function createApp(): Application {
+export function createApp(service: OrderService): Application {
   const app = express();
 
   app.use(helmet());
@@ -12,8 +13,8 @@ export function createApp(): Application {
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
 
-  app.use('/', healthRouter);
-  app.use('/api/v1/orders', ordersRouter);
+  app.use('/', createHealthRouter());
+  app.use('/api/v1/orders', createOrdersRouter(service));
 
   return app;
 }

@@ -1,26 +1,26 @@
 import { Router, Request, Response } from 'express';
 import { config } from '../config';
-import { pool } from '../db/client';
 
-const router = Router();
+export function createHealthRouter(): Router {
+  const router = Router();
 
-router.get('/health', (_req: Request, res: Response) => {
-  res.json({
-    status: 'ok',
-    service: config.serviceName,
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-    version: '3.0.0',
+  // Liveness — is the process alive and HTTP server responding?
+  router.get('/health', (_req: Request, res: Response) => {
+    res.json({
+      status: 'ok',
+      service: config.serviceName,
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      version: '3.0.0',
+    });
   });
-});
 
-router.get('/ready', async (_req: Request, res: Response) => {
-  try {
-    await pool.query('SELECT 1');
+  // Readiness — is this task ready to receive traffic?
+  // Intentionally does NOT check DB — database health is monitored
+  // via CloudWatch alarms on RDS metrics (CPUUtilization, DatabaseConnections, etc.)
+  router.get('/ready', (_req: Request, res: Response) => {
     res.json({ status: 'ready' });
-  } catch {
-    res.status(503).json({ status: 'not ready', error: 'database unavailable' });
-  }
-});
+  });
 
-export default router;
+  return router;
+}
