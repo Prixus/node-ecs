@@ -117,6 +117,15 @@
     .res-internet { background: #1e293b; border-color: #475569; }
     .res-internet .res-title { color: #94a3b8; }
 
+    .res-rds   { background: #0a1a3a; border-color: #1d4ed8; }
+    .res-rds .res-title { color: #93c5fd; }
+
+    .res-secret { background: #1a0a2a; border-color: #7c3aed; }
+    .res-secret .res-title { color: #c4b5fd; }
+
+    .db-flow-line { background: #60a5fa; }
+    .db-flow-line::after { color: #60a5fa; }
+
     /* Traffic flow arrows */
     .flow-section { margin: 20px 0; }
     .flow-title { font-size: 12px; font-weight: 700; margin-bottom: 10px; }
@@ -306,6 +315,56 @@
   </div>
 
   <div class="flow-section">
+    <div class="flow-title" style="color:#60a5fa">🗄 Database — ECS tasks connecting to RDS PostgreSQL (VPC-internal only)</div>
+
+    <div class="flow" style="margin-bottom:6px">
+      <div class="flow-node">
+        <div class="flow-box" style="background:#0a2a1a;border-color:#065f46;color:#34d399">users-service task</div>
+        <div class="flow-sub">Private Subnet</div>
+      </div>
+      <div class="flow-arrow">
+        <div class="flow-arrow-line db-flow-line"></div>
+        <div class="flow-arrow-label">:5432 (Prisma)</div>
+      </div>
+      <div class="flow-node">
+        <div class="flow-box" style="background:#0a1a3a;border-color:#1d4ed8;color:#93c5fd">RDS PostgreSQL</div>
+        <div class="flow-sub">users_db · private subnet</div>
+      </div>
+      <div class="flow-arrow" style="min-width:80px">
+        <div class="flow-arrow-line db-flow-line"></div>
+        <div class="flow-arrow-label">password from</div>
+      </div>
+      <div class="flow-node">
+        <div class="flow-box" style="background:#1a0a2a;border-color:#7c3aed;color:#c4b5fd">Secrets Manager</div>
+        <div class="flow-sub">DBMasterSecret · injected at task start</div>
+      </div>
+    </div>
+
+    <div class="flow">
+      <div class="flow-node">
+        <div class="flow-box" style="background:#2a1a0a;border-color:#78350f;color:#fbbf24">orders-service task</div>
+        <div class="flow-sub">Private Subnet</div>
+      </div>
+      <div class="flow-arrow">
+        <div class="flow-arrow-line db-flow-line"></div>
+        <div class="flow-arrow-label">:5432 (Prisma)</div>
+      </div>
+      <div class="flow-node">
+        <div class="flow-box" style="background:#0a1a3a;border-color:#1d4ed8;color:#93c5fd">RDS PostgreSQL</div>
+        <div class="flow-sub">orders_db · private subnet</div>
+      </div>
+      <div class="flow-arrow" style="min-width:80px">
+        <div class="flow-arrow-line db-flow-line"></div>
+        <div class="flow-arrow-label">password from</div>
+      </div>
+      <div class="flow-node">
+        <div class="flow-box" style="background:#1a0a2a;border-color:#7c3aed;color:#c4b5fd">Secrets Manager</div>
+        <div class="flow-sub">DBMasterSecret · injected at task start</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="flow-section">
     <div class="flow-title" style="color:#22c55e">↔ Internal — orders-service calling users-service via Service Connect</div>
 
     <div class="flow internal">
@@ -387,9 +446,9 @@
     </div>
 
     <!-- Private Subnets -->
-    <div class="subnet-row" style="margin-bottom:0">
+    <div class="subnet-row">
       <div class="subnet-col private-col">
-        <div class="subnet-col-label">Private Subnets <span class="tag tag-new">updated</span></div>
+        <div class="subnet-col-label">Private Subnets</div>
         <div class="az-badge">AZ 1 — 10.0.3.0/24</div>
         <div class="res res-task-users">
           <div class="res-title">users-service Task</div>
@@ -401,7 +460,7 @@
         </div>
       </div>
       <div class="subnet-col private-col">
-        <div class="subnet-col-label">Private Subnets <span class="tag tag-new">updated</span></div>
+        <div class="subnet-col-label">Private Subnets</div>
         <div class="az-badge">AZ 2 — 10.0.4.0/24</div>
         <div class="res res-task-users">
           <div class="res-title">users-service Task</div>
@@ -413,11 +472,32 @@
         </div>
       </div>
     </div>
+    <!-- DB Subnets -->
+    <div class="subnet-row" style="margin-bottom:0">
+      <div class="subnet-col" style="background:#0a1a3a;border:1px solid #1d4ed8;border-radius:10px;padding:14px">
+        <div class="subnet-col-label" style="color:#60a5fa;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px">DB Subnets <span class="tag tag-new">new</span></div>
+        <div class="az-badge">AZ 1 — 10.0.5.0/24</div>
+        <div class="res res-rds">
+          <div class="res-title">RDS PostgreSQL (primary)</div>
+          <div class="res-sub">Port 5432 · db.t3.micro<br/>No outbound route (VPC-local only)<br/>RDS SG: ingress from ECS SG only</div>
+        </div>
+      </div>
+      <div class="subnet-col" style="background:#0a1a3a;border:1px solid #1d4ed8;border-radius:10px;padding:14px">
+        <div class="subnet-col-label" style="color:#60a5fa;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px">DB Subnets <span class="tag tag-new">new</span></div>
+        <div class="az-badge">AZ 2 — 10.0.6.0/24</div>
+        <div class="res res-rds">
+          <div class="res-title">RDS (standby / subnet group)</div>
+          <div class="res-sub">Port 5432 · DB Subnet Group<br/>No outbound route (VPC-local only)<br/>RDS SG: ingress from ECS SG only</div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div class="note">
-    <strong>Why private subnets?</strong> ECS tasks have no public IP — they cannot be reached directly from the internet. All inbound traffic must go through the ALB. Outbound traffic (ECR image pulls, CloudWatch logs) exits through the NAT Gateway, which has a fixed Elastic IP. This is the standard production security posture.<br/><br/>
-    <strong>Cost impact:</strong> Two NAT Gateways add ~$64/mo base cost ($0.045/hr each). For dev/staging you can use a single NAT Gateway to halve this, at the cost of losing AZ redundancy on outbound traffic.
+    <strong>Subnet separation:</strong> ECS tasks (10.0.3–4.0/24) and RDS (10.0.5–6.0/24) are now in dedicated subnets. ECS subnets route outbound via NAT Gateways (needed for ECR pulls, CloudWatch). DB subnets have <em>no outbound route</em> — only the implicit VPC-local route applies. RDS has no reason to reach the internet.<br/><br/>
+    <strong>Two isolation layers:</strong> (1) Separate subnets with different route tables — a compromised ECS task cannot use the DB subnet's routing. (2) RDS Security Group only allows :5432 ingress from ECSSecurityGroup — even within the VPC, nothing else can reach RDS.<br/><br/>
+    <strong>DB credentials:</strong> <code>DB_PASSWORD</code> is never stored in the task definition. It is injected at task startup by the ECS agent pulling the value from Secrets Manager using the <code>Secrets</code> field. The <code>DATABASE_URL</code> is assembled in <code>config.ts</code> at process start.<br/><br/>
+    <strong>Cost impact:</strong> Two NAT Gateways ~$64/mo · RDS db.t3.micro ~$13/mo · 4 extra subnets/route tables — negligible. For dev/staging you can use a single NAT Gateway to halve the NAT cost.
   </div>
 
 </body>

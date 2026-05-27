@@ -54,7 +54,7 @@ Resources:
             - Name: DB_PORT
               Value: '5432'
             - Name: DB_NAME
-              Value: orders_db
+              Value: platform
             - Name: DB_USER
               Value: dbadmin
           Secrets:

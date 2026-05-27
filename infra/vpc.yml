@@ -65,6 +65,60 @@ Resources:
         - Key: Name
           Value: !Sub ${EnvironmentName}-private-subnet-2
 
+  # ---- DB Subnets (RDS only — no outbound route, VPC-local traffic only) ----
+  DBSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.5.0/24
+      AvailabilityZone: !Select [0, !GetAZs '']
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-db-subnet-1
+
+  DBSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.6.0/24
+      AvailabilityZone: !Select [1, !GetAZs '']
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-db-subnet-2
+
+  # DB subnets get their own route tables with no outbound route.
+  # Only the implicit local VPC route (10.0.0.0/16 → local) applies.
+  # RDS does not need internet access — it only accepts connections from ECS tasks.
+  DBRouteTable1:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-db-rt-1
+
+  DBSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref DBSubnet1
+      RouteTableId: !Ref DBRouteTable1
+
+  DBRouteTable2:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-db-rt-2
+
+  DBSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref DBSubnet2
+      RouteTableId: !Ref DBRouteTable2
+
   # ---- Internet Gateway (inbound from internet, outbound via public subnets) ----
   InternetGateway:
     Type: AWS::EC2::InternetGateway
@@ -224,6 +278,16 @@ Outputs:
     Value: !Ref PrivateSubnet2
     Export:
       Name: !Sub ${EnvironmentName}-PrivateSubnet2
+
+  DBSubnet1:
+    Value: !Ref DBSubnet1
+    Export:
+      Name: !Sub ${EnvironmentName}-DBSubnet1
+
+  DBSubnet2:
+    Value: !Ref DBSubnet2
+    Export:
+      Name: !Sub ${EnvironmentName}-DBSubnet2
 
   ALBSecurityGroup:
     Value: !Ref ALBSecurityGroup

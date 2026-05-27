@@ -17,6 +17,6 @@ export const config = {
     `postgresql://${process.env.DB_USER ?? 'dbadmin'}:${encodeURIComponent(
       process.env.DB_PASSWORD ?? 'localpassword',
     )}@${process.env.DB_HOST ?? 'localhost'}:${process.env.DB_PORT ?? '5432'}/${
-      process.env.DB_NAME ?? 'orders_db'
+      process.env.DB_NAME ?? 'platform'
     }${sslMode}`,
 };

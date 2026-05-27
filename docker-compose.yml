@@ -4,12 +4,11 @@ services:
     environment:
       POSTGRES_USER: dbadmin
       POSTGRES_PASSWORD: localpassword
-      POSTGRES_DB: postgres
+      POSTGRES_DB: platform
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./infra/postgres-init.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U dbadmin"]
       interval: 5s
@@ -28,7 +27,7 @@ services:
       - SERVICE_NAME=users-service
       - DB_HOST=postgres
       - DB_PORT=5432
-      - DB_NAME=users_db
+      - DB_NAME=platform
       - DB_USER=dbadmin
       - DB_PASSWORD=localpassword
     depends_on:
@@ -53,7 +52,7 @@ services:
       - USERS_SERVICE_URL=http://users-service:3000
       - DB_HOST=postgres
       - DB_PORT=5432
-      - DB_NAME=orders_db
+      - DB_NAME=platform
       - DB_USER=dbadmin
       - DB_PASSWORD=localpassword
     depends_on:
