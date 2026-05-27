@@ -1,0 +1,48 @@
+name: Bootstrap — Deploy full infrastructure
+
+# Run manually from the Actions tab.
+# Use this once to provision all shared infra (VPC, cluster, ECR repos, RDS)
+# before the per-service workflows can run.
+# Also use it to re-deploy shared infra after changes to infra/*.yml.
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment name (used as CFN stack prefix)'
+        required: true
+        default: 'production'
+      region:
+        description: 'AWS region'
+        required: true
+        default: 'us-east-1'
+
+env:
+  AWS_REGION: ${{ github.event.inputs.region }}
+  ENV: ${{ github.event.inputs.environment }}
+
+jobs:
+  bootstrap:
+    name: Deploy shared infrastructure + services
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/github-actions-deploy
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Run deploy.sh
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+        run: |
+          chmod +x infra/deploy.sh
+          ./infra/deploy.sh ${{ secrets.AWS_ACCOUNT_ID }} ${{ env.AWS_REGION }} ${{ env.ENV }}
