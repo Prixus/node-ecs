@@ -67,7 +67,7 @@ Resources:
       DBInstanceIdentifier: !Sub ${EnvironmentName}-postgres
       DBName: platform
       Engine: postgres
-      EngineVersion: '16.1'
+      EngineVersion: '16'
       DBInstanceClass: !Ref DBInstanceClass
       AllocatedStorage: !Ref DBAllocatedStorage
       StorageType: gp2
