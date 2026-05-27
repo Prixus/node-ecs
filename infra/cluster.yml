@@ -6,6 +6,11 @@ Parameters:
     Type: String
     Default: production
 
+  ServiceConnectNamespace:
+    Type: String
+    Default: my-platform.local
+    Description: Cloud Map HTTP namespace name used by ECS Service Connect
+
 Resources:
 
   # ---- ECS Cluster ----
@@ -21,7 +26,7 @@ Resources:
   CloudMapNamespace:
     Type: AWS::ServiceDiscovery::HttpNamespace
     Properties:
-      Name: my-platform.local
+      Name: !Ref ServiceConnectNamespace
       Description: Service Connect namespace for inter-service DNS
 
   # ---- IAM Roles ----
@@ -180,6 +185,6 @@ Outputs:
       Name: !Sub ${EnvironmentName}-TaskExecutionRoleName
 
   CloudMapNamespaceName:
-    Value: !GetAtt CloudMapNamespace.Name
+    Value: !Ref ServiceConnectNamespace
     Export:
       Name: !Sub ${EnvironmentName}-CloudMapNamespaceName
