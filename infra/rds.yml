@@ -14,14 +14,14 @@ Parameters:
 
 Resources:
 
-  # ---- DB Subnet Group (RDS lives in private subnets — no public access) ----
+  # ---- DB Subnet Group (RDS lives in dedicated DB subnets — no outbound route) ----
   DBSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
     Properties:
-      DBSubnetGroupDescription: !Sub ${EnvironmentName} private subnet group for RDS
+      DBSubnetGroupDescription: !Sub ${EnvironmentName} dedicated DB subnet group for RDS
       SubnetIds:
-        - Fn::ImportValue: !Sub ${EnvironmentName}-PrivateSubnet1
-        - Fn::ImportValue: !Sub ${EnvironmentName}-PrivateSubnet2
+        - Fn::ImportValue: !Sub ${EnvironmentName}-DBSubnet1
+        - Fn::ImportValue: !Sub ${EnvironmentName}-DBSubnet2
       Tags:
         - Key: Name
           Value: !Sub ${EnvironmentName}-db-subnet-group
@@ -61,8 +61,8 @@ Resources:
   # ---- RDS PostgreSQL Instance ----
   DBInstance:
     Type: AWS::RDS::DBInstance
-    DeletionPolicy: Snapshot
-    UpdateReplacePolicy: Snapshot
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
     Properties:
       DBInstanceIdentifier: !Sub ${EnvironmentName}-postgres
       DBName: platform

@@ -97,6 +97,20 @@
     .box-rule   { background: #1a1a0a; border-color: #4d7c0f; }
     .box-rule .box-title { color: #a3e635; }
 
+    .stack-rds  { background: #0d1a2e; border-color: #1e4a8a; }
+    .stack-rds .stack-label { color: #60a5fa; }
+
+    .box-rds    { background: #0a1a3a; border-color: #1d4ed8; }
+    .box-rds .box-title { color: #93c5fd; }
+
+    .box-secret { background: #1a0a2a; border-color: #7c3aed; }
+    .box-secret .box-title { color: #c4b5fd; }
+
+    .box-dbsg   { background: #1a0a0a; border-color: #991b1b; }
+    .box-dbsg .box-title { color: #fca5a5; }
+
+    .chip-red  { background: #4a1d1d; color: #fca5a5; }
+
     /* Arrows */
     .arrows { margin: 8px 0; }
     .arrow { display: flex; align-items: center; gap: 8px; font-size: 11px; color: #64748b; margin: 4px 0; }
@@ -175,6 +189,7 @@
     <div class="legend-item"><div class="legend-dot" style="background:#3730a3"></div> cluster.yml</div>
     <div class="legend-item"><div class="legend-dot" style="background:#065f46"></div> users-service.yml</div>
     <div class="legend-item"><div class="legend-dot" style="background:#78350f"></div> orders-service.yml</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#1e4a8a"></div> rds.yml</div>
   </div>
 
   <div class="canvas">
@@ -253,7 +268,38 @@
       </div>
     </div>
 
-    <div class="connector"><span class="connector-label">Fn::ImportValue ClusterName, ALBListenerArn, RoleArns</span></div>
+    <div class="connector"><span class="connector-label">Fn::ImportValue ClusterName, ALBListenerArn, RoleArns, TaskExecutionRoleName</span></div>
+
+    <!-- RDS Stack -->
+    <div class="stack stack-rds">
+      <div class="stack-label">rds.yml — RDS PostgreSQL + Secrets Manager</div>
+      <div class="row">
+        <div class="box box-rds" style="min-width:200px">
+          <div class="box-title">RDS PostgreSQL 16</div>
+          <div class="box-sub">Instance: db.t3.micro<br/>Multi-AZ: false (dev cost)<br/>DeletionPolicy: Snapshot<br/>Storage: 20 GB gp2</div>
+          <span class="chip chip-blue">private subnets</span>
+        </div>
+        <div class="box box-rds">
+          <div class="box-title">DB Subnet Group</div>
+          <div class="box-sub">DBSubnet1 (10.0.5.0/24)<br/>DBSubnet2 (10.0.6.0/24)<br/>No outbound route — VPC-local only</div>
+        </div>
+        <div class="box box-dbsg">
+          <div class="box-title">RDS Security Group</div>
+          <div class="box-sub">Ingress: :5432<br/>from ECSSecurityGroup only<br/>No public access</div>
+        </div>
+        <div class="box box-secret">
+          <div class="box-title">Secrets Manager</div>
+          <div class="box-sub">DBMasterSecret<br/>username: dbadmin<br/>password: auto-generated<br/>Injected into ECS via Secrets field</div>
+          <span class="chip chip-red">never plaintext</span>
+        </div>
+        <div class="box box-iam">
+          <div class="box-title">TaskExecutionSecretsPolicy</div>
+          <div class="box-sub">Grants ecsTaskExecutionRole<br/>secretsmanager:GetSecretValue<br/>on DBMasterSecret ARN</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="connector"><span class="connector-label">Fn::ImportValue DBEndpoint, DBPort, DBMasterSecretArn</span></div>
 
     <!-- Services row -->
     <div class="row" style="align-items: flex-start">
@@ -298,6 +344,10 @@
 
         <div class="sc-arrow">
           📡 Service Connect DNS: <strong>users-service:3000</strong> → my-platform.local
+        </div>
+        <div class="box box-rds" style="margin-top:10px">
+          <div class="box-title">→ RDS users_db</div>
+          <div class="box-sub">DB_HOST, DB_NAME=users_db<br/>DB_PASSWORD from Secrets Manager<br/>Prisma migrate deploy on startup</div>
         </div>
       </div>
 
@@ -347,6 +397,10 @@
 
         <div class="sc-arrow">
           📡 Service Connect DNS: <strong>orders-service:3001</strong> → my-platform.local
+        </div>
+        <div class="box box-rds" style="margin-top:10px">
+          <div class="box-title">→ RDS orders_db</div>
+          <div class="box-sub">DB_HOST, DB_NAME=orders_db<br/>DB_PASSWORD from Secrets Manager<br/>Prisma migrate deploy on startup</div>
         </div>
       </div>
     </div>

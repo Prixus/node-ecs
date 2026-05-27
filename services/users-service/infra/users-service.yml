@@ -52,7 +52,7 @@ Resources:
             - Name: DB_PORT
               Value: '5432'
             - Name: DB_NAME
-              Value: users_db
+              Value: platform
             - Name: DB_USER
               Value: dbadmin
           Secrets:
