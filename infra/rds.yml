@@ -61,8 +61,8 @@ Resources:
   # ---- RDS PostgreSQL Instance ----
   DBInstance:
     Type: AWS::RDS::DBInstance
-    DeletionPolicy: Snapshot
-    UpdateReplacePolicy: Snapshot
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
     Properties:
       DBInstanceIdentifier: !Sub ${EnvironmentName}-postgres
       DBName: platform
