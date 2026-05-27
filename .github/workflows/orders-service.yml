@@ -54,4 +54,5 @@ jobs:
                 Region=$AWS_REGION \
                 ImageTag=$GITHUB_SHA \
             --capabilities CAPABILITY_NAMED_IAM \
+            --role-arn arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/cfn-deploy-role \
             --no-fail-on-empty-changeset
