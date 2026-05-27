@@ -1,4 +1,4 @@
-import { PrismaClient, OrderStatus } from '@prisma/client';
+import { PrismaClient, OrderStatus, Prisma } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { Order, OrderItem } from '../models/order';
 
@@ -55,7 +55,9 @@ export class OrderRepository implements IOrderRepository {
     const row = await this.prisma.order.create({
       data: {
         userId: data.userId,
-        items: data.items,
+        // Prisma's Json field expects InputJsonValue — cast through unknown to satisfy the type checker.
+        // The data is plain JSON-serialisable objects so this is safe at runtime.
+        items: data.items as unknown as Prisma.InputJsonValue,
         total: data.total,
       },
     });
