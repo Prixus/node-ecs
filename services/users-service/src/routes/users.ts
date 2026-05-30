@@ -1,7 +1,8 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import { UserService, UserNotFoundError, EmailConflictError } from '../services/userService';
+import { UserService, userService, UserNotFoundError, EmailConflictError } from '../services/userService';
+import { CreateUserDto } from '../models/user';
 import { validate } from '../middleware/validate';
-import { createUserSchema, CreateUserDto } from '../schemas/userSchemas';
+import { createUserSchema } from '../schemas/userSchemas';
 
 export function createUsersRouter(service: UserService): Router {
   const router = Router();
@@ -22,19 +23,15 @@ export function createUsersRouter(service: UserService): Router {
     }
   });
 
-  // validate middleware runs first — route handler only runs if body is valid
-  router.post(
-    '/',
-    validate(createUserSchema),
-    async (req: Request, res: Response, next: NextFunction) => {
-      try {
-        const dto = req.body as CreateUserDto;
-        res.status(201).json(await service.create(dto));
-      } catch (err) {
-        next(err);
-      }
-    },
-  );
+  router.post('/', validate(createUserSchema), async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const dto = req.body as CreateUserDto;
+      const user = await service.create(dto);
+      res.status(201).json(user);
+    } catch (err) {
+      next(err);
+    }
+  });
 
   router.delete('/:id', async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -59,3 +56,5 @@ export function createUsersRouter(service: UserService): Router {
 
   return router;
 }
+
+export default createUsersRouter(userService);

@@ -1,74 +1,77 @@
-import { PrismaClient, OrderStatus, Prisma } from '@prisma/client';
-import { Decimal } from '@prisma/client/runtime/library';
-import { Order, OrderItem } from '../models/order';
+import { Prisma, PrismaClient } from '../../generated/prisma-client';
+import { prisma } from '../prisma';
+import { Order, OrderItem, OrderStatus } from '../models/order';
 
-// Interface the service depends on — keeps the service decoupled from Prisma.
-// To swap the ORM: write a new class implementing this interface and inject it.
+const toOrder = (o: {
+  id: string;
+  userId: string;
+  items: unknown;
+  status: string;
+  total: number;
+  createdAt: Date;
+}): Order => ({
+  id: o.id,
+  userId: o.userId,
+  items: o.items as OrderItem[],
+  status: o.status as Order['status'],
+  total: o.total,
+  createdAt: o.createdAt.toISOString(),
+});
+
 export interface IOrderRepository {
   findAll(): Promise<Order[]>;
   findById(id: string): Promise<Order | undefined>;
   findByUserId(userId: string): Promise<Order[]>;
-  save(data: { userId: string; items: OrderItem[]; total: number }): Promise<Order>;
-  updateStatus(id: string, status: Order['status']): Promise<Order>;
+  save(order: Order): Promise<Order>;
+  updateStatus(id: string, status: OrderStatus): Promise<Order | undefined>;
 }
 
-function toOrder(row: {
-  id: string;
-  userId: string;
-  items: unknown;
-  status: OrderStatus;
-  total: Decimal;
-  createdAt: Date;
-}): Order {
-  return {
-    id: row.id,
-    userId: row.userId,
-    items: row.items as OrderItem[],
-    status: row.status,
-    total: row.total.toNumber(),
-    createdAt: row.createdAt.toISOString(),
-  };
-}
-
-export class OrderRepository implements IOrderRepository {
-  constructor(private readonly prisma: PrismaClient) {}
+export class PrismaOrderRepository implements IOrderRepository {
+  constructor(private readonly db: PrismaClient) {}
 
   async findAll(): Promise<Order[]> {
-    const rows = await this.prisma.order.findMany({ orderBy: { createdAt: 'desc' } });
+    const rows = await this.db.order.findMany({ orderBy: { createdAt: 'asc' } });
     return rows.map(toOrder);
   }
 
   async findById(id: string): Promise<Order | undefined> {
-    const row = await this.prisma.order.findUnique({ where: { id } });
+    const row = await this.db.order.findUnique({ where: { id } });
     return row ? toOrder(row) : undefined;
   }
 
   async findByUserId(userId: string): Promise<Order[]> {
-    const rows = await this.prisma.order.findMany({
-      where: { userId },
-      orderBy: { createdAt: 'desc' },
-    });
+    const rows = await this.db.order.findMany({ where: { userId }, orderBy: { createdAt: 'asc' } });
     return rows.map(toOrder);
   }
 
-  async save(data: { userId: string; items: OrderItem[]; total: number }): Promise<Order> {
-    const row = await this.prisma.order.create({
+  async save(order: Order): Promise<Order> {
+    const row = await this.db.order.create({
       data: {
-        userId: data.userId,
-        // Prisma's Json field expects InputJsonValue — cast through unknown to satisfy the type checker.
-        // The data is plain JSON-serialisable objects so this is safe at runtime.
-        items: data.items as unknown as Prisma.InputJsonValue,
-        total: data.total,
+        id: order.id,
+        userId: order.userId,
+        items: order.items as unknown as Prisma.InputJsonValue,
+        status: order.status,
+        total: order.total,
+        createdAt: new Date(order.createdAt),
       },
     });
     return toOrder(row);
   }
 
-  async updateStatus(id: string, status: Order['status']): Promise<Order> {
-    const row = await this.prisma.order.update({
-      where: { id },
-      data: { status: status as OrderStatus },
-    });
-    return toOrder(row);
+  async updateStatus(id: string, status: OrderStatus): Promise<Order | undefined> {
+    try {
+      const row = await this.db.order.update({
+        where: { id },
+        data: { status },
+      });
+      return toOrder(row);
+    } catch (err) {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2025') {
+        return undefined;
+      }
+      throw err;
+    }
   }
 }
+
+export const orderRepository: IOrderRepository = new PrismaOrderRepository(prisma);

@@ -48,21 +48,10 @@ Resources:
               Value: orders-service
             - Name: USERS_SERVICE_URL
               Value: http://users-service:3000
-            - Name: DB_HOST
-              Value:
-                Fn::ImportValue: !Sub ${EnvironmentName}-DBEndpoint
-            - Name: DB_PORT
-              Value: '5432'
-            - Name: DB_NAME
-              Value: platform
-            - Name: DB_USER
-              Value: dbadmin
           Secrets:
-            - Name: DB_PASSWORD
-              ValueFrom: !Sub
-                - '${SecretArn}:password::'
-                - SecretArn:
-                    Fn::ImportValue: !Sub ${EnvironmentName}-DBMasterSecretArn
+            - Name: DATABASE_URL
+              ValueFrom:
+                Fn::ImportValue: !Sub ${EnvironmentName}-OrdersDbSecretArn
           LogConfiguration:
             LogDriver: awslogs
             Options:
@@ -74,7 +63,7 @@ Resources:
             Interval: 30
             Timeout: 5
             Retries: 3
-            StartPeriod: 10
+            StartPeriod: 60
           ReadonlyRootFilesystem: false
           StopTimeout: 30
 

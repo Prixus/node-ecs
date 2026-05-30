@@ -1,5 +1,6 @@
+import { randomUUID } from 'crypto';
 import { Order, CreateOrderDto } from '../models/order';
-import { IOrderRepository } from '../repositories/orderRepository';
+import { IOrderRepository, orderRepository } from '../repositories/orderRepository';
 
 export class OrderNotFoundError extends Error {
   constructor(id: string) {
@@ -33,8 +34,19 @@ export class OrderService {
   }
 
   async create(dto: CreateOrderDto): Promise<Order> {
+    if (!dto.items || dto.items.length === 0) {
+      throw new InvalidOrderError('Order must have at least one item');
+    }
     const total = dto.items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
-    return this.repo.save({ userId: dto.userId, items: dto.items, total });
+    const order: Order = {
+      id: randomUUID(),
+      userId: dto.userId,
+      items: dto.items,
+      status: 'pending',
+      total,
+      createdAt: new Date().toISOString(),
+    };
+    return this.repo.save(order);
   }
 
   async cancel(id: string): Promise<Order> {
@@ -43,6 +55,10 @@ export class OrderService {
     if (order.status === 'cancelled') {
       throw new InvalidOrderError('Order is already cancelled');
     }
-    return this.repo.updateStatus(id, 'cancelled');
+    const updated = await this.repo.updateStatus(id, 'cancelled');
+    if (!updated) throw new OrderNotFoundError(id);
+    return updated;
   }
 }
+
+export const orderService = new OrderService(orderRepository);

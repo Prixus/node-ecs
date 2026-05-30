@@ -40,9 +40,15 @@ deploy_stack "${ENV}-vpc" infra/vpc.yml \
 deploy_stack "${ENV}-cluster" infra/cluster.yml \
   "EnvironmentName=${ENV}"
 
-# 3. RDS (PostgreSQL — takes ~10 min on first deploy)
+# 3. RDS databases + Secrets Manager (prompt for DB password)
+if [ -z "${DB_PASSWORD:-}" ]; then
+  read -r -s -p "Enter RDS master password (min 16 chars): " DB_PASSWORD
+  echo ""
+fi
+
 deploy_stack "${ENV}-rds" infra/rds.yml \
-  "EnvironmentName=${ENV}"
+  "EnvironmentName=${ENV}" \
+  "DbPassword=${DB_PASSWORD}"
 
 # 4. Build and push images to ECR
 echo ""

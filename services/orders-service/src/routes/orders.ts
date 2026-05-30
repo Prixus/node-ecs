@@ -1,7 +1,8 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import { OrderService, OrderNotFoundError, InvalidOrderError } from '../services/orderService';
+import { OrderService, orderService, OrderNotFoundError, InvalidOrderError } from '../services/orderService';
+import { CreateOrderDto } from '../models/order';
 import { validate } from '../middleware/validate';
-import { createOrderSchema, CreateOrderDto } from '../schemas/orderSchemas';
+import { createOrderSchema } from '../schemas/orderSchemas';
 
 export function createOrdersRouter(service: OrderService): Router {
   const router = Router();
@@ -22,19 +23,15 @@ export function createOrdersRouter(service: OrderService): Router {
     }
   });
 
-  // validate middleware runs first — route handler only runs if body is valid
-  router.post(
-    '/',
-    validate(createOrderSchema),
-    async (req: Request, res: Response, next: NextFunction) => {
-      try {
-        const dto = req.body as CreateOrderDto;
-        res.status(201).json(await service.create(dto));
-      } catch (err) {
-        next(err);
-      }
-    },
-  );
+  router.post('/', validate(createOrderSchema), async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const dto = req.body as CreateOrderDto;
+      const order = await service.create(dto);
+      res.status(201).json(order);
+    } catch (err) {
+      next(err);
+    }
+  });
 
   router.patch('/:id/cancel', async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -58,3 +55,5 @@ export function createOrdersRouter(service: OrderService): Router {
 
   return router;
 }
+
+export default createOrdersRouter(orderService);

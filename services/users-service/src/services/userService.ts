@@ -1,5 +1,7 @@
+import { randomUUID } from 'crypto';
+import { Prisma } from '../../generated/prisma-client';
 import { User, CreateUserDto } from '../models/user';
-import { IUserRepository } from '../repositories/userRepository';
+import { IUserRepository, userRepository } from '../repositories/userRepository';
 
 export class UserNotFoundError extends Error {
   constructor(id: string) {
@@ -32,7 +34,21 @@ export class UserService {
     if (await this.repo.findByEmail(dto.email)) {
       throw new EmailConflictError(dto.email);
     }
-    return this.repo.save({ name: dto.name, email: dto.email });
+    const user: User = {
+      id: randomUUID(),
+      name: dto.name,
+      email: dto.email,
+      createdAt: new Date().toISOString(),
+    };
+    try {
+      return await this.repo.save(user);
+    } catch (err) {
+      // Race condition: another request inserted the same email between our check and write
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+        throw new EmailConflictError(dto.email);
+      }
+      throw err;
+    }
   }
 
   async delete(id: string): Promise<void> {
@@ -40,3 +56,5 @@ export class UserService {
     if (!deleted) throw new UserNotFoundError(id);
   }
 }
+
+export const userService = new UserService(userRepository);
