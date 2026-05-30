@@ -1,8 +1,15 @@
 import { createApp } from './app';
 import { config } from './config';
-import { prisma } from './prisma';
+import { PrismaClient } from '../generated/prisma-client';
+import { PrismaUserRepository } from './repositories/userRepository';
+import { UserService } from './services/userService';
 
-const app = createApp();
+process.env.DATABASE_URL = config.databaseUrl;
+
+const prisma = new PrismaClient();
+const userRepository = new PrismaUserRepository(prisma);
+const userService = new UserService(userRepository);
+const app = createApp(userService);
 
 const server = app.listen(config.port, () => {
   console.log(`[${config.serviceName}] listening on port ${config.port} (${config.nodeEnv})`);

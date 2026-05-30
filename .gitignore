@@ -4,3 +4,4 @@ generated/
 .env
 coverage/
 *.js.map
+.claude/

@@ -1,6 +1,6 @@
-import { Prisma } from '../../generated/prisma-client';
+import { Prisma, PrismaClient } from '../../generated/prisma-client';
 import { prisma } from '../prisma';
-import { Order, OrderItem } from '../models/order';
+import { Order, OrderItem, OrderStatus } from '../models/order';
 
 const toOrder = (o: {
   id: string;
@@ -18,24 +18,34 @@ const toOrder = (o: {
   createdAt: o.createdAt.toISOString(),
 });
 
-export const orderRepository = {
+export interface IOrderRepository {
+  findAll(): Promise<Order[]>;
+  findById(id: string): Promise<Order | undefined>;
+  findByUserId(userId: string): Promise<Order[]>;
+  save(order: Order): Promise<Order>;
+  updateStatus(id: string, status: OrderStatus): Promise<Order | undefined>;
+}
+
+export class PrismaOrderRepository implements IOrderRepository {
+  constructor(private readonly db: PrismaClient) {}
+
   async findAll(): Promise<Order[]> {
-    const rows = await prisma.order.findMany({ orderBy: { createdAt: 'asc' } });
+    const rows = await this.db.order.findMany({ orderBy: { createdAt: 'asc' } });
     return rows.map(toOrder);
-  },
+  }
 
   async findById(id: string): Promise<Order | undefined> {
-    const row = await prisma.order.findUnique({ where: { id } });
+    const row = await this.db.order.findUnique({ where: { id } });
     return row ? toOrder(row) : undefined;
-  },
+  }
 
   async findByUserId(userId: string): Promise<Order[]> {
-    const rows = await prisma.order.findMany({ where: { userId }, orderBy: { createdAt: 'asc' } });
+    const rows = await this.db.order.findMany({ where: { userId }, orderBy: { createdAt: 'asc' } });
     return rows.map(toOrder);
-  },
+  }
 
   async save(order: Order): Promise<Order> {
-    const row = await prisma.order.create({
+    const row = await this.db.order.create({
       data: {
         id: order.id,
         userId: order.userId,
@@ -46,13 +56,13 @@ export const orderRepository = {
       },
     });
     return toOrder(row);
-  },
+  }
 
-  async update(order: Order): Promise<Order | undefined> {
+  async updateStatus(id: string, status: OrderStatus): Promise<Order | undefined> {
     try {
-      const row = await prisma.order.update({
-        where: { id: order.id },
-        data: { status: order.status },
+      const row = await this.db.order.update({
+        where: { id },
+        data: { status },
       });
       return toOrder(row);
     } catch (err) {
@@ -61,5 +71,7 @@ export const orderRepository = {
       }
       throw err;
     }
-  },
-};
+  }
+}
+
+export const orderRepository: IOrderRepository = new PrismaOrderRepository(prisma);

@@ -1,4 +1,4 @@
-import { Prisma } from '../../generated/prisma-client';
+import { Prisma, PrismaClient } from '../../generated/prisma-client';
 import { prisma } from '../prisma';
 import { User } from '../models/user';
 
@@ -9,24 +9,34 @@ const toUser = (u: { id: string; name: string; email: string; createdAt: Date })
   createdAt: u.createdAt.toISOString(),
 });
 
-export const userRepository = {
+export interface IUserRepository {
+  findAll(): Promise<User[]>;
+  findById(id: string): Promise<User | undefined>;
+  findByEmail(email: string): Promise<User | undefined>;
+  save(user: User): Promise<User>;
+  delete(id: string): Promise<boolean>;
+}
+
+export class PrismaUserRepository implements IUserRepository {
+  constructor(private readonly db: PrismaClient) {}
+
   async findAll(): Promise<User[]> {
-    const rows = await prisma.user.findMany({ orderBy: { createdAt: 'asc' } });
+    const rows = await this.db.user.findMany({ orderBy: { createdAt: 'asc' } });
     return rows.map(toUser);
-  },
+  }
 
   async findById(id: string): Promise<User | undefined> {
-    const row = await prisma.user.findUnique({ where: { id } });
+    const row = await this.db.user.findUnique({ where: { id } });
     return row ? toUser(row) : undefined;
-  },
+  }
 
   async findByEmail(email: string): Promise<User | undefined> {
-    const row = await prisma.user.findUnique({ where: { email } });
+    const row = await this.db.user.findUnique({ where: { email } });
     return row ? toUser(row) : undefined;
-  },
+  }
 
   async save(user: User): Promise<User> {
-    const row = await prisma.user.create({
+    const row = await this.db.user.create({
       data: {
         id: user.id,
         name: user.name,
@@ -35,11 +45,11 @@ export const userRepository = {
       },
     });
     return toUser(row);
-  },
+  }
 
   async delete(id: string): Promise<boolean> {
     try {
-      await prisma.user.delete({ where: { id } });
+      await this.db.user.delete({ where: { id } });
       return true;
     } catch (err) {
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2025') {
@@ -47,5 +57,7 @@ export const userRepository = {
       }
       throw err;
     }
-  },
-};
+  }
+}
+
+export const userRepository: IUserRepository = new PrismaUserRepository(prisma);

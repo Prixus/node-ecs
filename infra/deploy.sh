@@ -7,6 +7,10 @@ REGION="${2:?'region required'}"
 ENV="${3:-production}"
 IMAGE_TAG="${GITHUB_SHA:-latest}"
 
+# CloudFormation service role — has all infra permissions.
+# The github-actions-deploy role only needs cloudformation:Deploy + iam:PassRole to this ARN.
+CFN_ROLE_ARN="arn:aws:iam::${ACCOUNT_ID}:role/cfn-deploy-role"
+
 deploy_stack() {
   local stack_name="$1"
   local template="$2"
@@ -21,6 +25,7 @@ deploy_stack() {
     --template-file "${template}" \
     --parameter-overrides "${params[@]}" \
     --capabilities CAPABILITY_NAMED_IAM \
+    --role-arn "${CFN_ROLE_ARN}" \
     --region "${REGION}" \
     --no-fail-on-empty-changeset
 

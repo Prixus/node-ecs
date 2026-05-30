@@ -7,7 +7,7 @@ jest.mock('../repositories/orderRepository', () => ({
     findById: jest.fn(),
     findByUserId: jest.fn(),
     save: jest.fn(),
-    update: jest.fn(),
+    updateStatus: jest.fn(),
   },
 }));
 
@@ -54,7 +54,7 @@ describe('orderService', () => {
     const pending = makeOrder();
     const cancelled = makeOrder({ status: 'cancelled' as const });
     mockRepo.findById.mockResolvedValue(pending);
-    mockRepo.update.mockResolvedValue(cancelled);
+    mockRepo.updateStatus.mockResolvedValue(cancelled);
 
     const result = await orderService.cancel('o1');
     expect(result.status).toBe('cancelled');
@@ -68,7 +68,7 @@ describe('orderService', () => {
 
   it('throws OrderNotFoundError when update returns undefined (race condition)', async () => {
     mockRepo.findById.mockResolvedValue(makeOrder());
-    mockRepo.update.mockResolvedValue(undefined);
+    mockRepo.updateStatus.mockResolvedValue(undefined);
 
     await expect(orderService.cancel('o1')).rejects.toThrow(OrderNotFoundError);
   });
