@@ -1,37 +1,32 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: RDS PostgreSQL instance, subnet group, security group, and Secrets Manager credentials
+Description: RDS PostgreSQL instances and Secrets Manager secrets for users-service and orders-service
 
 Parameters:
   EnvironmentName:
     Type: String
     Default: production
-  DBInstanceClass:
+  DbPassword:
     Type: String
-    Default: db.t3.micro
-  DBAllocatedStorage:
-    Type: Number
-    Default: 20
+    NoEcho: true
+    MinLength: 16
+    Description: Master password for both RDS instances (min 16 chars)
 
 Resources:
 
-  # ---- DB Subnet Group (RDS lives in dedicated DB subnets — no outbound route) ----
-  DBSubnetGroup:
+  # ---- DB Subnet Group (uses private subnets from vpc stack) ----
+  DbSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
     Properties:
-      DBSubnetGroupDescription: !Sub ${EnvironmentName} dedicated DB subnet group for RDS
+      DBSubnetGroupDescription: Private subnets for RDS instances
       SubnetIds:
-        - Fn::ImportValue: !Sub ${EnvironmentName}-DBSubnet1
-        - Fn::ImportValue: !Sub ${EnvironmentName}-DBSubnet2
-      Tags:
-        - Key: Name
-          Value: !Sub ${EnvironmentName}-db-subnet-group
+        - Fn::ImportValue: !Sub ${EnvironmentName}-PrivateSubnet1
+        - Fn::ImportValue: !Sub ${EnvironmentName}-PrivateSubnet2
 
-  # ---- RDS Security Group ----
-  # Only allows inbound PostgreSQL from ECS tasks (port 5432)
-  RDSSecurityGroup:
+  # ---- Security Group: allows 5432 inbound from ECS tasks only ----
+  RdsSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: Allow PostgreSQL from ECS tasks only
+      GroupDescription: Allow Postgres inbound from ECS tasks
       VpcId:
         Fn::ImportValue: !Sub ${EnvironmentName}-VpcId
       SecurityGroupIngress:
@@ -40,79 +35,84 @@ Resources:
           ToPort: 5432
           SourceSecurityGroupId:
             Fn::ImportValue: !Sub ${EnvironmentName}-ECSSecurityGroup
-      Tags:
-        - Key: Name
-          Value: !Sub ${EnvironmentName}-rds-sg
 
-  # ---- Master Credentials — auto-generated password, stored in Secrets Manager ----
-  # ECS task execution role is granted GetSecretValue below so it can inject DB_PASSWORD at startup.
-  # Your app code never sees or stores the password — ECS injects it as an env var.
-  DBMasterSecret:
-    Type: AWS::SecretsManager::Secret
-    Properties:
-      Name: !Sub ${EnvironmentName}/rds/master
-      Description: !Sub RDS master credentials for ${EnvironmentName}
-      GenerateSecretString:
-        SecretStringTemplate: '{"username":"dbadmin"}'
-        GenerateStringKey: password
-        PasswordLength: 32
-        ExcludeCharacters: '"@/\'
-
-  # ---- RDS PostgreSQL Instance ----
-  DBInstance:
+  # ---- users-service RDS instance ----
+  UsersDbInstance:
     Type: AWS::RDS::DBInstance
-    DeletionPolicy: Delete
-    UpdateReplacePolicy: Delete
+    DeletionPolicy: Snapshot
     Properties:
-      DBInstanceIdentifier: !Sub ${EnvironmentName}-postgres
-      DBName: platform
+      DBInstanceIdentifier: !Sub ${EnvironmentName}-users-db
+      DBInstanceClass: db.t3.micro
       Engine: postgres
       EngineVersion: '16'
-      DBInstanceClass: !Ref DBInstanceClass
-      AllocatedStorage: !Ref DBAllocatedStorage
-      StorageType: gp2
+      MasterUsername: users_service
+      MasterUserPassword: !Ref DbPassword
+      DBName: usersdb
+      AllocatedStorage: '20'
+      StorageType: gp3
       StorageEncrypted: true
-      MasterUsername: !Sub '{{resolve:secretsmanager:${DBMasterSecret}:SecretString:username}}'
-      MasterUserPassword: !Sub '{{resolve:secretsmanager:${DBMasterSecret}:SecretString:password}}'
-      DBSubnetGroupName: !Ref DBSubnetGroup
-      VPCSecurityGroups:
-        - !Ref RDSSecurityGroup
       MultiAZ: false
-      PubliclyAccessible: false
-      DeletionProtection: false
+      DBSubnetGroupName: !Ref DbSubnetGroup
+      VPCSecurityGroups:
+        - !Ref RdsSecurityGroup
       BackupRetentionPeriod: 7
-      Tags:
-        - Key: Name
-          Value: !Sub ${EnvironmentName}-postgres
+      DeletionProtection: false
+      PubliclyAccessible: false
 
-  # ---- Grant TaskExecutionRole permission to read the secret ----
-  # The execution role runs before your container starts — it fetches the secret
-  # and injects DB_PASSWORD as an environment variable into the task.
-  TaskExecutionSecretsPolicy:
-    Type: AWS::IAM::Policy
+  # ---- orders-service RDS instance ----
+  OrdersDbInstance:
+    Type: AWS::RDS::DBInstance
+    DeletionPolicy: Snapshot
     Properties:
-      PolicyName: !Sub ${EnvironmentName}-rds-secrets-read
-      PolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Action: secretsmanager:GetSecretValue
-            Resource: !Ref DBMasterSecret
-      Roles:
-        - Fn::ImportValue: !Sub ${EnvironmentName}-TaskExecutionRoleName
+      DBInstanceIdentifier: !Sub ${EnvironmentName}-orders-db
+      DBInstanceClass: db.t3.micro
+      Engine: postgres
+      EngineVersion: '16'
+      MasterUsername: orders_service
+      MasterUserPassword: !Ref DbPassword
+      DBName: ordersdb
+      AllocatedStorage: '20'
+      StorageType: gp3
+      StorageEncrypted: true
+      MultiAZ: false
+      DBSubnetGroupName: !Ref DbSubnetGroup
+      VPCSecurityGroups:
+        - !Ref RdsSecurityGroup
+      BackupRetentionPeriod: 7
+      DeletionProtection: false
+      PubliclyAccessible: false
+
+  # ---- Secrets Manager: full DATABASE_URL strings ----
+  UsersDbSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub ${EnvironmentName}/users-service/database-url
+      Description: Prisma DATABASE_URL for users-service
+      SecretString: !Sub
+        - "postgresql://users_service:${DbPassword}@${Host}:5432/usersdb"
+        - Host: !GetAtt UsersDbInstance.Endpoint.Address
+
+  OrdersDbSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub ${EnvironmentName}/orders-service/database-url
+      Description: Prisma DATABASE_URL for orders-service
+      SecretString: !Sub
+        - "postgresql://orders_service:${DbPassword}@${Host}:5432/ordersdb"
+        - Host: !GetAtt OrdersDbInstance.Endpoint.Address
 
 Outputs:
-  DBEndpoint:
-    Value: !GetAtt DBInstance.Endpoint.Address
+  UsersDbSecretArn:
+    Value: !Ref UsersDbSecret
     Export:
-      Name: !Sub ${EnvironmentName}-DBEndpoint
+      Name: !Sub ${EnvironmentName}-UsersDbSecretArn
 
-  DBPort:
-    Value: !GetAtt DBInstance.Endpoint.Port
+  OrdersDbSecretArn:
+    Value: !Ref OrdersDbSecret
     Export:
-      Name: !Sub ${EnvironmentName}-DBPort
+      Name: !Sub ${EnvironmentName}-OrdersDbSecretArn
 
-  DBMasterSecretArn:
-    Value: !Ref DBMasterSecret
+  RdsSecurityGroupId:
+    Value: !Ref RdsSecurityGroup
     Export:
-      Name: !Sub ${EnvironmentName}-DBMasterSecretArn
+      Name: !Sub ${EnvironmentName}-RdsSecurityGroupId

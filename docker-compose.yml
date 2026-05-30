@@ -1,20 +1,35 @@
 services:
-  postgres:
+  users-db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: dbadmin
-      POSTGRES_PASSWORD: localpassword
-      POSTGRES_DB: platform
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: usersdb
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - users-db-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U dbadmin"]
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
       timeout: 3s
-      retries: 10
-      start_period: 5s
+      retries: 5
+
+  orders-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ordersdb
+    ports:
+      - "5433:5432"
+    volumes:
+      - orders-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
   users-service:
     build:
@@ -25,20 +40,16 @@ services:
       - NODE_ENV=production
       - PORT=3000
       - SERVICE_NAME=users-service
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - DB_NAME=platform
-      - DB_USER=dbadmin
-      - DB_PASSWORD=localpassword
+      - DATABASE_URL=postgresql://postgres:postgres@users-db:5432/usersdb
     depends_on:
-      postgres:
+      users-db:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:3000/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 3
-      start_period: 15s
+      start_period: 60s
 
   orders-service:
     build:
@@ -50,13 +61,9 @@ services:
       - PORT=3001
       - SERVICE_NAME=orders-service
       - USERS_SERVICE_URL=http://users-service:3000
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - DB_NAME=platform
-      - DB_USER=dbadmin
-      - DB_PASSWORD=localpassword
+      - DATABASE_URL=postgresql://postgres:postgres@orders-db:5432/ordersdb
     depends_on:
-      postgres:
+      orders-db:
         condition: service_healthy
       users-service:
         condition: service_healthy
@@ -65,7 +72,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 3
-      start_period: 15s
+      start_period: 60s
 
 volumes:
-  postgres_data:
+  users-db-data:
+  orders-db-data:

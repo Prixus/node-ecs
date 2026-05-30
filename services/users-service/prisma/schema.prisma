@@ -1,5 +1,6 @@
 generator client {
   provider = "prisma-client-js"
+  output   = "../generated/prisma-client"
 }
 
 datasource db {
@@ -8,10 +9,8 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id        String   @id @default(uuid())
   name      String
   email     String   @unique
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-
-  @@map("users")
+  createdAt DateTime @default(now())
 }

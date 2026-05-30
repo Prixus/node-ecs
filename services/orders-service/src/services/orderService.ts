@@ -1,5 +1,6 @@
+import { randomUUID } from 'crypto';
 import { Order, CreateOrderDto } from '../models/order';
-import { IOrderRepository } from '../repositories/orderRepository';
+import { orderRepository } from '../repositories/orderRepository';
 
 export class OrderNotFoundError extends Error {
   constructor(id: string) {
@@ -15,34 +16,45 @@ export class InvalidOrderError extends Error {
   }
 }
 
-export class OrderService {
-  constructor(private readonly repo: IOrderRepository) {}
-
+export const orderService = {
   async getAll(): Promise<Order[]> {
-    return this.repo.findAll();
-  }
+    return orderRepository.findAll();
+  },
 
   async getById(id: string): Promise<Order> {
-    const order = await this.repo.findById(id);
+    const order = await orderRepository.findById(id);
     if (!order) throw new OrderNotFoundError(id);
     return order;
-  }
+  },
 
   async getByUserId(userId: string): Promise<Order[]> {
-    return this.repo.findByUserId(userId);
-  }
+    return orderRepository.findByUserId(userId);
+  },
 
   async create(dto: CreateOrderDto): Promise<Order> {
+    if (!dto.items || dto.items.length === 0) {
+      throw new InvalidOrderError('Order must have at least one item');
+    }
     const total = dto.items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
-    return this.repo.save({ userId: dto.userId, items: dto.items, total });
-  }
+    const order: Order = {
+      id: randomUUID(),
+      userId: dto.userId,
+      items: dto.items,
+      status: 'pending',
+      total,
+      createdAt: new Date().toISOString(),
+    };
+    return orderRepository.save(order);
+  },
 
   async cancel(id: string): Promise<Order> {
-    const order = await this.repo.findById(id);
+    const order = await orderRepository.findById(id);
     if (!order) throw new OrderNotFoundError(id);
     if (order.status === 'cancelled') {
       throw new InvalidOrderError('Order is already cancelled');
     }
-    return this.repo.updateStatus(id, 'cancelled');
-  }
-}
+    const updated = await orderRepository.update({ ...order, status: 'cancelled' });
+    if (!updated) throw new OrderNotFoundError(id);
+    return updated;
+  },
+};

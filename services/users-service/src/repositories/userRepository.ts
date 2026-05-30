@@ -1,50 +1,51 @@
-import { PrismaClient } from '@prisma/client';
+import { Prisma } from '../../generated/prisma-client';
+import { prisma } from '../prisma';
 import { User } from '../models/user';
 
-// Interface the service depends on — keeps the service decoupled from Prisma.
-// To swap the ORM: write a new class implementing this interface and inject it.
-export interface IUserRepository {
-  findAll(): Promise<User[]>;
-  findById(id: string): Promise<User | undefined>;
-  findByEmail(email: string): Promise<User | undefined>;
-  save(data: { name: string; email: string }): Promise<User>;
-  delete(id: string): Promise<boolean>;
-}
+const toUser = (u: { id: string; name: string; email: string; createdAt: Date }): User => ({
+  id: u.id,
+  name: u.name,
+  email: u.email,
+  createdAt: u.createdAt.toISOString(),
+});
 
-function toUser(row: { id: string; name: string; email: string; createdAt: Date }): User {
-  return { ...row, createdAt: row.createdAt.toISOString() };
-}
-
-export class UserRepository implements IUserRepository {
-  constructor(private readonly prisma: PrismaClient) {}
-
+export const userRepository = {
   async findAll(): Promise<User[]> {
-    const rows = await this.prisma.user.findMany({ orderBy: { createdAt: 'desc' } });
+    const rows = await prisma.user.findMany({ orderBy: { createdAt: 'asc' } });
     return rows.map(toUser);
-  }
+  },
 
   async findById(id: string): Promise<User | undefined> {
-    const row = await this.prisma.user.findUnique({ where: { id } });
+    const row = await prisma.user.findUnique({ where: { id } });
     return row ? toUser(row) : undefined;
-  }
+  },
 
   async findByEmail(email: string): Promise<User | undefined> {
-    const row = await this.prisma.user.findUnique({ where: { email } });
+    const row = await prisma.user.findUnique({ where: { email } });
     return row ? toUser(row) : undefined;
-  }
+  },
 
-  async save(data: { name: string; email: string }): Promise<User> {
-    const row = await this.prisma.user.create({ data });
+  async save(user: User): Promise<User> {
+    const row = await prisma.user.create({
+      data: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        createdAt: new Date(user.createdAt),
+      },
+    });
     return toUser(row);
-  }
+  },
 
   async delete(id: string): Promise<boolean> {
     try {
-      await this.prisma.user.delete({ where: { id } });
+      await prisma.user.delete({ where: { id } });
       return true;
-    } catch {
-      // Prisma throws P2025 when the record doesn't exist
-      return false;
+    } catch (err) {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2025') {
+        return false;
+      }
+      throw err;
     }
-  }
-}
+  },
+};

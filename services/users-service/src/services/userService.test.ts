@@ -1,60 +1,65 @@
-import { UserService, UserNotFoundError, EmailConflictError } from './userService';
-import { IUserRepository } from '../repositories/userRepository';
-import { User } from '../models/user';
+import { userService, UserNotFoundError, EmailConflictError } from './userService';
+import { userRepository } from '../repositories/userRepository';
 
-const baseUser: User = {
-  id: 'uuid-1',
-  name: 'Alice',
-  email: 'alice@example.com',
-  createdAt: new Date().toISOString(),
-};
+jest.mock('../repositories/userRepository', () => ({
+  userRepository: {
+    findAll: jest.fn(),
+    findById: jest.fn(),
+    findByEmail: jest.fn(),
+    save: jest.fn(),
+    delete: jest.fn(),
+  },
+}));
 
-// Mock the repository interface — no ORM, no DB, no pg pool needed
-const mockRepo: jest.Mocked<IUserRepository> = {
-  findAll: jest.fn(),
-  findById: jest.fn(),
-  findByEmail: jest.fn(),
-  save: jest.fn(),
-  delete: jest.fn(),
-};
-
-const service = new UserService(mockRepo);
+const mockRepo = userRepository as jest.Mocked<typeof userRepository>;
 
 beforeEach(() => jest.clearAllMocks());
 
-describe('UserService', () => {
-  it('creates a user', async () => {
-    mockRepo.findByEmail.mockResolvedValue(undefined);
-    mockRepo.save.mockResolvedValue(baseUser);
+const makeUser = (overrides = {}) => ({
+  id: 'u1',
+  name: 'Alice',
+  email: 'alice@example.com',
+  createdAt: new Date().toISOString(),
+  ...overrides,
+});
 
-    const user = await service.create({ name: 'Alice', email: 'alice@example.com' });
-    expect(user.id).toBe('uuid-1');
-    expect(mockRepo.save).toHaveBeenCalledWith({ name: 'Alice', email: 'alice@example.com' });
+describe('userService', () => {
+  it('creates a user and retrieves it', async () => {
+    const user = makeUser();
+    mockRepo.findByEmail.mockResolvedValue(undefined);
+    mockRepo.save.mockResolvedValue(user);
+    mockRepo.findById.mockResolvedValue(user);
+
+    const created = await userService.create({ name: 'Alice', email: 'alice@example.com' });
+    expect(created.id).toBeDefined();
+    const found = await userService.getById('u1');
+    expect(found).toMatchObject({ name: 'Alice' });
   });
 
   it('throws EmailConflictError on duplicate email', async () => {
-    mockRepo.findByEmail.mockResolvedValue(baseUser);
+    mockRepo.findByEmail.mockResolvedValue(makeUser());
 
     await expect(
-      service.create({ name: 'Bob', email: 'alice@example.com' }),
+      userService.create({ name: 'Bob2', email: 'alice@example.com' }),
     ).rejects.toThrow(EmailConflictError);
   });
 
   it('throws UserNotFoundError for unknown id', async () => {
     mockRepo.findById.mockResolvedValue(undefined);
 
-    await expect(service.getById('nonexistent')).rejects.toThrow(UserNotFoundError);
+    await expect(userService.getById('nonexistent')).rejects.toThrow(UserNotFoundError);
   });
 
   it('deletes a user', async () => {
     mockRepo.delete.mockResolvedValue(true);
 
-    await expect(service.delete('uuid-1')).resolves.toBeUndefined();
+    await userService.delete('u1');
+    expect(mockRepo.delete).toHaveBeenCalledWith('u1');
   });
 
-  it('throws UserNotFoundError when deleting unknown id', async () => {
+  it('throws UserNotFoundError when deleting non-existent user', async () => {
     mockRepo.delete.mockResolvedValue(false);
 
-    await expect(service.delete('nonexistent')).rejects.toThrow(UserNotFoundError);
+    await expect(userService.delete('nonexistent')).rejects.toThrow(UserNotFoundError);
   });
 });

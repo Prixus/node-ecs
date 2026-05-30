@@ -7,10 +7,6 @@ REGION="${2:?'region required'}"
 ENV="${3:-production}"
 IMAGE_TAG="${GITHUB_SHA:-latest}"
 
-# CloudFormation service role — has all infra permissions.
-# The github-actions-deploy role only needs cloudformation:Deploy + iam:PassRole to this ARN.
-CFN_ROLE_ARN="arn:aws:iam::${ACCOUNT_ID}:role/cfn-deploy-role"
-
 deploy_stack() {
   local stack_name="$1"
   local template="$2"
@@ -25,7 +21,6 @@ deploy_stack() {
     --template-file "${template}" \
     --parameter-overrides "${params[@]}" \
     --capabilities CAPABILITY_NAMED_IAM \
-    --role-arn "${CFN_ROLE_ARN}" \
     --region "${REGION}" \
     --no-fail-on-empty-changeset
 
@@ -40,9 +35,15 @@ deploy_stack "${ENV}-vpc" infra/vpc.yml \
 deploy_stack "${ENV}-cluster" infra/cluster.yml \
   "EnvironmentName=${ENV}"
 
-# 3. RDS (PostgreSQL — takes ~10 min on first deploy)
+# 3. RDS databases + Secrets Manager (prompt for DB password)
+if [ -z "${DB_PASSWORD:-}" ]; then
+  read -r -s -p "Enter RDS master password (min 16 chars): " DB_PASSWORD
+  echo ""
+fi
+
 deploy_stack "${ENV}-rds" infra/rds.yml \
-  "EnvironmentName=${ENV}"
+  "EnvironmentName=${ENV}" \
+  "DbPassword=${DB_PASSWORD}"
 
 # 4. Build and push images to ECR
 echo ""
